@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Дневник 66</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script>
+        tailwind.config = { darkMode: 'class' }
+    </script>
+    <style>
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        body { -webkit-tap-highlight-color: transparent; }
+        .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+        .slide-enter-active, .slide-leave-active { transition: all 0.3s ease; }
+        .slide-enter-from { transform: translateX(20px); opacity: 0; }
+        .slide-leave-to { transform: translateX(-20px); opacity: 0; }
+        .loader-spin { animation: spin 1s linear infinite; }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 text-slate-800 dark:text-gray-100 font-sans transition-colors duration-300">
+
+<div id="app" class="max-w-md mx-auto min-h-screen relative shadow-2xl overflow-hidden bg-white dark:bg-gray-900">
+
+    <div v-if="isLoading" class="absolute inset-0 z-[100] bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm flex flex-col items-center justify-center p-8 text-center">
+        <div class="w-12 h-12 border-4 border-blue-100 dark:border-gray-700 border-t-blue-600 dark:border-t-blue-500 rounded-full loader-spin mb-4"></div>
+        <h3 class="text-lg font-bold text-gray-800 dark:text-white">Обновление...</h3>
+        <p class="text-xs text-gray-400 mt-2">~25 секунд</p>
+    </div>
+
+    <div v-if="!isLoggedIn" class="absolute inset-0 z-50 bg-slate-50 dark:bg-gray-900 flex flex-col items-center justify-center p-6">
+        <div class="text-6xl mb-4">🦉</div>
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">Дневник 66</h1>
+        <div v-if="step === 'login'" class="w-full space-y-3">
+            <input v-model="loginData.login" type="text" placeholder="Телефон" class="w-full p-4 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm outline-none focus:ring-2 focus:ring-blue-500 dark:text-white">
+            <input v-model="loginData.password" type="password" placeholder="Пароль" class="w-full p-4 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm outline-none focus:ring-2 focus:ring-blue-500 dark:text-white">
+            <button @click="startLogin" class="w-full py-4 rounded-xl font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-lg active:scale-95 transition-transform">Войти</button>
+        </div>
+        <div v-if="step === 'sms'" class="w-full space-y-4 text-center">
+            <p class="text-sm text-gray-500 dark:text-gray-400">Код из СМС</p>
+            <input v-model="smsCode" type="tel" maxlength="6" placeholder="000000" class="w-full p-4 text-center text-3xl font-bold rounded-xl bg-white dark:bg-gray-800 border-2 border-blue-500 outline-none tracking-widest dark:text-white">
+            <button @click="sendSms" class="w-full py-4 rounded-xl font-bold text-white bg-green-600 hover:bg-green-700 shadow-lg active:scale-95 transition-transform">Подтвердить</button>
+        </div>
+        <p v-if="errorMsg" class="mt-4 text-red-500 text-xs bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded-lg">{{ errorMsg }}</p>
+    </div>
+
+    <div v-else class="pb-24 bg-gray-100 dark:bg-gray-900 min-h-screen transition-colors duration-300">
+        <div class="bg-white dark:bg-gray-800 px-6 pt-6 pb-4 rounded-b-[30px] shadow-sm mb-4 sticky top-0 z-30 transition-colors duration-300">
+            <div class="flex justify-between items-start mb-4">
+                <div>
+                    <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Ученик</p>
+                    <h2 class="font-bold text-xl text-gray-800 dark:text-white leading-tight">{{ apiData.user?.name || '...' }}</h2>
+                </div>
+                <div class="flex gap-3">
+                    <button @click="toggleTheme" class="w-10 h-10 bg-gray-50 dark:bg-gray-700 rounded-full flex items-center justify-center transition-colors"><span v-if="isDark">☀️</span><span v-else>🌙</span></button>
+                    <button @click="doLogout" class="w-10 h-10 bg-red-50 dark:bg-red-900/20 rounded-full flex items-center justify-center text-red-500 hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors">🚪</button>
+                </div>
+            </div>
+            <div class="flex gap-3 overflow-x-auto no-scrollbar pb-1">
+                <div class="flex flex-col items-center min-w-[60px]">
+                    <div class="w-14 h-14 rounded-full bg-blue-50 dark:bg-blue-900/30 border border-blue-100 dark:border-blue-800 flex items-center justify-center text-xl mb-1">📢</div>
+                    <span class="text-[10px] font-bold text-gray-500 dark:text-gray-400">Новости</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="px-4 space-y-4">
+            <div v-if="activeTab === 'home'" class="space-y-4">
+                <div class="bg-white dark:bg-gray-800 rounded-3xl p-5 shadow-sm border border-gray-100 dark:border-gray-700 transition-colors">
+                    <h3 class="font-bold text-lg text-gray-800 dark:text-white mb-4 border-b border-gray-100 dark:border-gray-700 pb-2">Новые оценки</h3>
+                    <div v-if="apiData.recent_grades_view?.length">
+                        <div v-for="block in apiData.recent_grades_view" :key="block.day" class="mb-5 last:mb-0">
+                            <p class="text-[10px] text-gray-400 uppercase font-bold mb-2 tracking-wider">{{ cleanTitle(block.day) }}</p>
+                            <div v-for="item in block.items" class="flex items-start mb-3 last:mb-0">
+                                <div class="w-8 h-8 flex items-center justify-center rounded-lg font-bold text-white text-sm shadow-sm mr-3 shrink-0" :class="gradeColor(item.grade)">{{ item.grade }}</div>
+                                <div><h4 class="font-bold text-gray-800 dark:text-gray-200 text-xs uppercase leading-tight">{{ item.subject }}</h4><p class="text-[10px] text-gray-400 mt-0.5">{{ item.info }}</p></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div v-else class="text-center text-gray-400 text-sm py-2">Нет оценок</div>
+                </div>
+                <div class="bg-white dark:bg-gray-800 rounded-3xl p-5 shadow-sm border border-gray-100 dark:border-gray-700 transition-colors">
+                    <div class="flex justify-between items-center mb-4"><h3 class="font-bold text-lg text-gray-800 dark:text-white">Расписание</h3><span class="text-xs bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300 px-2 py-1 rounded-md font-bold">{{ apiData.date_label }}</span></div>
+                    <div v-if="!todaySchedule.length" class="text-center text-gray-400 text-sm py-6">Нет уроков</div>
+                    <div v-else class="space-y-3">
+                        <div v-for="l in todaySchedule" :key="l.num" class="flex items-start"><div class="w-10 text-center pt-0.5 mr-2"><div class="text-[10px] font-bold text-gray-400">№{{ l.num }}</div><div class="text-xs font-bold text-blue-500 dark:text-blue-400">{{ l.time.split('-')[0] }}</div></div><div class="flex-1 border-l-2 border-gray-100 dark:border-gray-700 pl-3"><div class="text-sm font-bold text-gray-800 dark:text-gray-200 leading-tight">{{ l.subject }}</div><div class="text-[10px] text-gray-400">{{ l.time }}</div></div></div>
+                    </div>
+                </div>
+            </div>
+
+            <div v-if="activeTab === 'schedule'" class="space-y-4 pb-6">
+                <div v-for="day in weekDaysOrder" :key="day" class="bg-white dark:bg-gray-800 rounded-2xl p-5 shadow-sm border border-gray-100 dark:border-gray-700 transition-colors">
+                    <div class="flex justify-between items-center mb-3 border-b border-gray-50 dark:border-gray-700 pb-2"><h3 class="font-bold text-gray-800 dark:text-white">{{ day }}</h3><span v-if="apiData.week_schedule[day]" class="text-[10px] bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-300 px-2 py-0.5 rounded font-bold">{{ apiData.week_schedule[day].length }} ур.</span></div>
+                    <div v-if="!apiData.week_schedule[day]?.length" class="text-center text-xs text-gray-300 py-1">Выходной</div>
+                    <div v-else class="space-y-2">
+                        <div v-for="l in apiData.week_schedule[day]" class="flex items-start text-sm"><span class="w-8 text-xs font-bold text-gray-400 pt-0.5">{{ l.time.split('-')[0] }}</span><span class="flex-1 font-medium text-gray-700 dark:text-gray-300">{{ l.subject }}</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <div v-if="activeTab === 'homework'" class="pb-6">
+                <div v-if="!apiData.homework_list?.length" class="text-center py-10 text-gray-400"><div class="text-4xl mb-2">📚</div><p class="text-sm">Заданий пока нет</p></div>
+                <div v-else class="bg-white dark:bg-gray-800 rounded-3xl p-5 shadow-sm border border-gray-100 dark:border-gray-700 min-h-[300px] transition-colors">
+                    <div class="flex justify-between items-center mb-4 bg-gray-50 dark:bg-gray-700/50 p-2 rounded-xl">
+                        <button @click="prevHW" class="w-8 h-8 flex items-center justify-center rounded-full bg-white dark:bg-gray-700 text-gray-600 dark:text-white shadow-sm" :disabled="hwIndex===0" :class="{'opacity-50': hwIndex===0}">‹</button>
+                        <h3 class="font-bold text-sm text-gray-800 dark:text-white text-center flex-1 px-2 leading-tight">{{ cleanTitle(currentHW.date) }}</h3>
+                        <button @click="nextHW" class="w-8 h-8 flex items-center justify-center rounded-full bg-white dark:bg-gray-700 text-gray-600 dark:text-white shadow-sm" :disabled="hwIndex===apiData.homework_list.length-1" :class="{'opacity-50': hwIndex===apiData.homework_list.length-1}">›</button>
+                    </div>
+                    <transition name="slide" mode="out-in">
+                        <div :key="hwIndex" class="space-y-3">
+                            <div v-if="!currentHW.tasks?.length" class="text-center py-8 text-xs text-gray-400">Нет заданий</div>
+                            <div v-else v-for="t in currentHW.tasks" class="border-b border-gray-50 dark:border-gray-700 last:border-0 pb-3">
+                                <h4 class="text-xs font-bold text-blue-600 dark:text-blue-400 mb-1 uppercase">{{ t.subject }}</h4>
+                                <p class="text-sm text-gray-700 dark:text-gray-300 leading-relaxed" v-html="formatLinks(t.task)"></p>
+                            </div>
+                        </div>
+                    </transition>
+                </div>
+            </div>
+
+            <div v-if="activeTab === 'grades'">
+                <div class="bg-white dark:bg-gray-800 p-1 rounded-xl shadow-sm flex mb-4 sticky top-20 z-20 border border-gray-100 dark:border-gray-700">
+                    <button v-for="q in ['1','2','3','4']" @click="currQ = q" class="flex-1 py-2 rounded-lg text-xs font-bold transition-all" :class="currQ===q ? 'bg-blue-600 text-white shadow' : 'text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'">{{ q }} Четв.</button>
+                </div>
+                <div v-if="apiData.quarters_history?.[currQ]?.length" class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm overflow-hidden border border-gray-100 dark:border-gray-700">
+                    <div class="grid grid-cols-12 bg-gray-50 dark:bg-gray-700/50 py-2 px-4 text-[10px] font-bold text-gray-400 uppercase">
+                        <div class="col-span-8">Предмет</div><div class="col-span-2 text-center">Ср.</div><div class="col-span-2 text-right">Итог</div>
+                    </div>
+                    <div class="divide-y divide-gray-100 dark:divide-gray-700">
+                        <div v-for="sub in apiData.quarters_history[currQ]" class="grid grid-cols-12 px-4 py-3 items-center">
+                            <div class="col-span-8 pr-2">
+                                <div class="font-bold text-xs text-gray-800 dark:text-gray-200 mb-1.5 truncate">{{ sub.subject }}</div>
+                                <div class="flex flex-wrap gap-1">
+                                    <span v-for="g in sub.daily_grades" class="min-w-[20px] h-5 px-1 flex items-center justify-center rounded text-[10px] font-bold shadow-sm" :class="gradeColor(g, true)">{{ g }}</span>
+                                </div>
+                            </div>
+                            <div class="col-span-2 text-center text-[10px] font-bold text-gray-500 dark:text-gray-400">{{ sub.avg }}</div>
+                            <div class="col-span-2 text-right font-bold text-sm" :class="{'text-green-600 dark:text-green-400': sub.final=='5', 'text-blue-600 dark:text-blue-400': sub.final=='4', 'text-orange-500': sub.final=='3', 'text-red-500': sub.final=='2', 'text-gray-300': sub.final=='-'}">{{ sub.final }}</div>
+                        </div>
+                    </div>
+                </div>
+                <div v-else class="text-center py-10 text-gray-400"><div class="text-4xl mb-2">📭</div><p class="text-xs">Нет данных</p></div>
+            </div>
+        </div>
+    </div>
+
+    <div v-if="isLoggedIn" class="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white/90 dark:bg-gray-800/90 backdrop-blur-md border-t border-gray-200 dark:border-gray-700 flex justify-between px-6 py-2 z-40 pb-safe shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] transition-colors duration-300">
+        <button @click="activeTab = 'home'" :class="activeTab==='home'?'text-blue-600 dark:text-blue-400':'text-gray-400'" class="flex flex-col items-center w-16 transition-colors"><span class="text-2xl mb-0.5">🏠</span><span class="text-[9px] font-bold">Главная</span></button>
+        <button @click="activeTab = 'schedule'" :class="activeTab==='schedule'?'text-blue-600 dark:text-blue-400':'text-gray-400'" class="flex flex-col items-center w-16 transition-colors"><span class="text-2xl mb-0.5">📅</span><span class="text-[9px] font-bold">График</span></button>
+        <button @click="activeTab = 'homework'" :class="activeTab==='homework'?'text-blue-600 dark:text-blue-400':'text-gray-400'" class="flex flex-col items-center w-16 transition-colors"><span class="text-2xl mb-0.5">📚</span><span class="text-[9px] font-bold">Д/З</span></button>
+        <button @click="activeTab = 'grades'" :class="activeTab==='grades'?'text-blue-600 dark:text-blue-400':'text-gray-400'" class="flex flex-col items-center w-16 transition-colors"><span class="text-2xl mb-0.5">🎓</span><span class="text-[9px] font-bold">Оценки</span></button>
+    </div>
+</div>
+
+<script>
+    const { createApp, ref, computed, onMounted } = Vue;
+    createApp({
+        setup() {
+            const isLoggedIn = ref(false);
+            const step = ref('login');
+            const activeTab = ref('home');
+            const currQ = ref('1');
+            const loginData = ref({ login: '', password: '' });
+            const smsCode = ref('');
+            const apiData = ref({ week_schedule: {}, recent_grades_view: [], homework_list: [] });
+            const isLoading = ref(false);
+            const errorMsg = ref('');
+            const hwIndex = ref(0);
+            const isDark = ref(false);
+
+            const weekDaysOrder = ["Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота"];
+            const todaySchedule = computed(() => apiData.value.schedule_today || []);
+            const currentHW = computed(() => {
+                if(!apiData.value.homework_list || apiData.value.homework_list.length === 0) return { date: "Нет данных", tasks: [] };
+                return apiData.value.homework_list[hwIndex.value];
+            });
+            
+            const nextHW = () => { if(hwIndex.value < apiData.value.homework_list.length-1) hwIndex.value++; };
+            const prevHW = () => { if(hwIndex.value > 0) hwIndex.value--; };
+
+            const cleanTitle = (str) => str ? str.replace(/\(.*\)/, "").replace(/ВЫПОЛНЕНО.*/i, "").trim() : "";
+            const formatLinks = (text) => {
+                if (!text) return "";
+                let t = text.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" class="text-blue-500 underline">Ссылка</a>');
+                if (t.toLowerCase().includes("файл")) t = '📎 ' + t;
+                return t;
+            };
+            const gradeColor = (g, small=false) => {
+                if (g.includes('5') || g.includes('4')) return small ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' : 'bg-[#00985B]';
+                if (g.includes('3')) return small ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400' : 'bg-[#EA7E00]';
+                if (g.includes('2')) return small ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400' : 'bg-[#D93025]';
+                return small ? 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400' : 'bg-gray-400';
+            };
+
+            const toggleTheme = () => {
+                isDark.value = !isDark.value;
+                if (isDark.value) document.documentElement.classList.add('dark');
+                else document.documentElement.classList.remove('dark');
+                localStorage.setItem('theme', isDark.value ? 'dark' : 'light');
+            };
+
+            const SESSION_KEY = 'dn_data_v26';
+            const saveSession = (data) => { localStorage.setItem(SESSION_KEY, JSON.stringify(data)); };
+            const loadSession = () => {
+                if (localStorage.getItem('theme') === 'dark') {
+                    isDark.value = true; document.documentElement.classList.add('dark');
+                }
+                const d = localStorage.getItem(SESSION_KEY);
+                if (d) { apiData.value = JSON.parse(d); isLoggedIn.value = true; return true; }
+                return false;
+            };
+            const doLogout = () => { localStorage.removeItem(SESSION_KEY); isLoggedIn.value = false; step.value='login'; apiData.value={ week_schedule: {} }; };
+
+            onMounted(() => { loadSession(); });
+
+            const startLogin = async () => {
+                if(!loginData.value.login) return;
+                isLoading.value = true; errorMsg.value = '';
+                try {
+                    const res = await fetch('http://localhost:8000/api/login', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(loginData.value) });
+                    const d = await res.json();
+                    if(d.status === 'need_sms') { isLoading.value = false; step.value = 'sms'; }
+                    else if(d.status === 'ok') { await loadData(d.token); isLoggedIn.value = true; isLoading.value = false; }
+                } catch(e) { errorMsg.value = "Ошибка"; isLoading.value = false; } 
+            };
+            const sendSms = async () => {
+                isLoading.value = true;
+                try {
+                    const res = await fetch('http://localhost:8000/api/sms', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ code: smsCode.value }) });
+                    const d = await res.json();
+                    if(d.status === 'ok') { await loadData(d.token); isLoggedIn.value = true; isLoading.value = false;}
+                } catch(e) { errorMsg.value = "Код неверный"; isLoading.value = false; }
+            };
+            const loadData = async (token) => {
+                const res = await fetch(`http://localhost:8000/api/data?token=${token}`);
+                const data = await res.json();
+                apiData.value = data;
+                saveSession(data); 
+            };
+
+            return { isLoggedIn, step, activeTab, currQ, loginData, smsCode, apiData, isLoading, errorMsg, startLogin, sendSms, weekDaysOrder, todaySchedule, doLogout, currentHW, nextHW, prevHW, hwIndex, cleanTitle, formatLinks, gradeColor, isDark, toggleTheme };
+        }
+    }).mount('#app');
+</script>
+</body>
+</html>
