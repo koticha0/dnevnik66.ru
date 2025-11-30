@@ -158,6 +158,7 @@
     const { createApp, ref, computed, onMounted } = Vue;
     createApp({
         setup() {
+            const API_URL = cutting-exploration-sweet-roya.trycloudfalre.com;
             const isLoggedIn = ref(false);
             const step = ref('login');
             const activeTab = ref('home');
@@ -219,7 +220,7 @@
                 if(!loginData.value.login) return;
                 isLoading.value = true; errorMsg.value = '';
                 try {
-                    const res = await fetch('http://localhost:8000/api/login', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(loginData.value) });
+                    const res = await fetch(`${API_URL}/api/login`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(loginData.value) });
                     const d = await res.json();
                     if(d.status === 'need_sms') { isLoading.value = false; step.value = 'sms'; }
                     else if(d.status === 'ok') { await loadData(d.token); isLoggedIn.value = true; isLoading.value = false; }
