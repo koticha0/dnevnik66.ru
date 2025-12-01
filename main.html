@@ -229,7 +229,7 @@
             const sendSms = async () => {
                 isLoading.value = true;
                 try {
-                    const res = await fetch(https:https:/5a98d98e4761d9.lhr.life/api/sms', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ code: smsCode.value }) });
+                    const res = await fetch(https:/5a98d98e4761d9.lhr.life/api/sms', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ code: smsCode.value }) });
                     const d = await res.json();
                     if(d.status === 'ok') { await loadData(d.token); isLoggedIn.value = true; isLoading.value = false;}
                 } catch(e) { errorMsg.value = "Код неверный"; isLoading.value = false; }
