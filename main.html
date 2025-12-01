@@ -220,25 +220,47 @@
                 if(!loginData.value.login) return;
                 isLoading.value = true; errorMsg.value = '';
                 try {
-                    const res = await fetch(`https://5a98d98e4761d9.lhr.life/api/login`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(loginData.value) });
+                    // Используем API_URL и обратные кавычки `
+                    const res = await fetch(`${API_URL}/api/login`, { 
+                        method: 'POST', 
+                        headers: {'Content-Type': 'application/json'}, 
+                        body: JSON.stringify(loginData.value) 
+                    });
                     const d = await res.json();
                     if(d.status === 'need_sms') { isLoading.value = false; step.value = 'sms'; }
                     else if(d.status === 'ok') { await loadData(d.token); isLoggedIn.value = true; isLoading.value = false; }
-                } catch(e) { errorMsg.value = "Ошибка"; isLoading.value = false; } 
+                } catch(e) { 
+                    console.error(e);
+                    errorMsg.value = "Ошибка соединения с сервером"; 
+                    isLoading.value = false; 
+                } 
             };
+
             const sendSms = async () => {
                 isLoading.value = true;
                 try {
-                    const res = await fetch(https:/5a98d98e4761d9.lhr.life/api/sms', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ code: smsCode.value }) });
+                    const res = await fetch(`${API_URL}/api/sms`, { 
+                        method: 'POST', 
+                        headers: {'Content-Type': 'application/json'}, 
+                        body: JSON.stringify({ code: smsCode.value }) 
+                    });
                     const d = await res.json();
                     if(d.status === 'ok') { await loadData(d.token); isLoggedIn.value = true; isLoading.value = false;}
-                } catch(e) { errorMsg.value = "Код неверный"; isLoading.value = false; }
+                } catch(e) { 
+                    errorMsg.value = "Код неверный"; 
+                    isLoading.value = false; 
+                }
             };
+
             const loadData = async (token) => {
-                const res = await fetch(`http://localhost:8000/api/data?token=${token}`);
-                const data = await res.json();
-                apiData.value = data;
-                saveSession(data); 
+                try {
+                    const res = await fetch(`${API_URL}/api/data?token=${token}`);
+                    const data = await res.json();
+                    apiData.value = data;
+                    saveSession(data); 
+                } catch (e) {
+                    console.error("Ошибка загрузки данных:", e);
+                }
             };
 
             return { isLoggedIn, step, activeTab, currQ, loginData, smsCode, apiData, isLoading, errorMsg, startLogin, sendSms, weekDaysOrder, todaySchedule, doLogout, currentHW, nextHW, prevHW, hwIndex, cleanTitle, formatLinks, gradeColor, isDark, toggleTheme };
